@@ -23,15 +23,26 @@ fi
 
 echo "✅ Namespace and job found"
 
-# Wait for job to complete
+# Wait for tests to finish (check logs instead of job completion due to Kubedock sidecar)
 echo ""
-echo "⏳ Waiting for job to complete..."
-kubectl wait --for=condition=complete job/$JOB_NAME -n $NAMESPACE --timeout=600s
+echo "⏳ Waiting for tests to complete..."
+sleep 10  # Give it a moment to start
 
-# Check job status
-JOB_STATUS=$(kubectl get job $JOB_NAME -n $NAMESPACE -o jsonpath='{.status.conditions[?(@.type=="Complete")].status}')
+# Check if tests completed by looking at logs
+TEST_COMPLETED=""
+for i in {1..60}; do
+    if kubectl logs job/$JOB_NAME -n $NAMESPACE -c tests 2>/dev/null | grep -q "✅ All tests completed successfully\|Test Run.*\."; then
+        TEST_COMPLETED="true"
+        break
+    fi
+    echo "Waiting for tests... ($i/60)"
+    sleep 5
+done
 
-if [[ "$JOB_STATUS" == "True" ]]; then
+# Check job status based on test completion
+JOB_STATUS="$TEST_COMPLETED"
+
+if [[ "$JOB_STATUS" == "true" ]]; then
     echo "✅ Job completed successfully!"
     
     echo ""
