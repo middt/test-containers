@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: testcontainers-config
+  namespace: testcontainers-demo
+data:
+  # Testcontainers configuration for Kubedock
+  DOCKER_HOST: "tcp://localhost:2375"
+  TESTCONTAINERS_RYUK_DISABLED: "true"
+  TESTCONTAINERS_CHECKS_DISABLE: "true"
+  # Optional: Configure container registry if needed
+  # TESTCONTAINERS_HUB_IMAGE_NAME_PREFIX: "your-registry.com/"
+  
+  # Kubedock configuration  
+  KUBEDOCK_REQUEST_CPU: "100m,500m"  # 100m request, 500m limit
+  KUBEDOCK_REQUEST_MEMORY: "128Mi,512Mi"  # 128Mi request, 512Mi limit
+  KUBEDOCK_ACTIVE_DEADLINE_SECONDS: "1800"  # 30 minutes timeout
+  KUBEDOCK_PULL_POLICY: "IfNotPresent"
+  
+  # Kubernetes labels and annotations
+  K8S_LABEL_APP: "testcontainers-demo"
+  K8S_LABEL_COMPONENT: "integration-test"
+  K8S_ANNOTATION_DESCRIPTION: "Testcontainers integration test pod"

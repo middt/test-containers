@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using StackExchange.Redis;
 using Testcontainers.Redis;
 using TestContainersDemo.Api.Interfaces;
@@ -19,8 +20,20 @@ public class TestContainersWebApplicationFactory : WebApplicationFactory<Program
 
     public string RedisConnectionString => _redisContainer.GetConnectionString();
 
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
+        // Set content root for containerized environments
+        var isTestingEnvironment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Testing";
+        if (isTestingEnvironment)
+        {
+            var containerPath = "/app/TestContainersDemo.Api";
+            if (Directory.Exists(containerPath))
+            {
+                builder.UseContentRoot(containerPath);
+            }
+        }
+
         builder.ConfigureAppConfiguration((context, config) =>
         {
             // Override the Redis connection string to use the test container

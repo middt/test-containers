@@ -133,6 +133,8 @@ curl -X DELETE https://localhost:5001/api/cache/mykey
 
 ## Running Integration Tests
 
+### Local Development
+
 The integration tests use **Testcontainers** to automatically spin up a Redis container:
 
 ```bash
@@ -148,6 +150,26 @@ dotnet test TestContainersDemo.IntegrationTests
 # Run a specific test class
 dotnet test --filter "FullyQualifiedName~CacheControllerTests"
 ```
+
+### Kubernetes Deployment with Kubedock
+
+For running tests in Kubernetes environments, this project includes [Kubedock](https://github.com/joyrex2001/kubedock) integration:
+
+```bash
+# Deploy to local KIND cluster (recommended for development)
+./k8s/scripts/deploy-kind.sh
+
+# Or deploy to existing Kubernetes cluster
+./k8s/scripts/deploy.sh
+```
+
+**Kubedock Benefits:**
+- ✅ No Docker-in-Docker required
+- ✅ Test containers run as Kubernetes pods  
+- ✅ Better resource management and security
+- ✅ Perfect for CI/CD pipelines (Tekton, GitHub Actions, etc.)
+
+See [k8s/README.md](k8s/README.md) for detailed Kubernetes deployment instructions.
 
 ### What the Tests Cover
 

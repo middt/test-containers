@@ -1,0 +1,141 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: testcontainers-demo-job-image
+  namespace: testcontainers-demo
+  labels:
+    app: testcontainers-demo
+    component: test-job
+spec:
+  backoffLimit: 2
+  template:
+    metadata:
+      labels:
+        app: testcontainers-demo
+        component: test-pod
+    spec:
+      serviceAccountName: kubedock-sa
+      restartPolicy: Never
+      containers:
+      
+      # Main test container (using custom image)
+      - name: tests
+        image: testcontainers-demo:latest  # Build with: docker build -f k8s/Dockerfile.tests -t testcontainers-demo:latest .
+        imagePullPolicy: Never  # Use locally built image
+        envFrom:
+        - configMapRef:
+            name: testcontainers-config
+        env:
+        - name: ASPNETCORE_ENVIRONMENT
+          value: "Testing"
+        # Override entrypoint to wait for kubedock and then run tests
+        command: ["/bin/bash"]
+        args:
+        - -c
+        - |
+          set -e
+          echo "Starting integration tests with Kubedock..."
+          
+          # Wait for Kubedock to be ready
+          echo "Waiting for Kubedock to be ready..."
+          timeout=60
+          while [ $timeout -gt 0 ]; do
+            if wget -q -O /dev/null http://localhost:2375/version 2>/dev/null; then
+              echo "✅ Kubedock is ready!"
+              break
+            fi
+            echo "⏳ Waiting for Kubedock... ($timeout seconds left)"
+            sleep 2
+            timeout=$((timeout-2))
+          done
+          
+          if [ $timeout -le 0 ]; then
+            echo "❌ Timeout waiting for Kubedock"
+            exit 1
+          fi
+          
+          # Verify Docker API is working
+          echo "🔍 Testing Docker API connection..."
+          wget -q -O - http://localhost:2375/version 2>/dev/null | head -c 100 || echo "Docker API verification failed"
+          echo ""
+          
+          # Run the integration tests
+          echo "🧪 Running integration tests..."
+          dotnet test --no-build --logger "console;verbosity=normal" --results-directory /tmp/test-results
+          
+          echo "✅ All tests completed successfully!"
+          
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+      
+      # Kubedock sidecar container
+      - name: kubedock
+        image: joyrex2001/kubedock:0.18.2
+        ports:
+        - containerPort: 2375
+          name: docker-api
+        env:
+        - name: KUBEDOCK_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: KUBEDOCK_POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        args:
+        - server
+        - --listen-addr=0.0.0.0:2375
+        - --port-forward
+        - --lock
+        - --prune-start
+        - --inspector
+        - --request-cpu=$(KUBEDOCK_REQUEST_CPU)
+        - --request-memory=$(KUBEDOCK_REQUEST_MEMORY)
+        - --active-deadline-seconds=$(KUBEDOCK_ACTIVE_DEADLINE_SECONDS)
+        - --pull-policy=$(KUBEDOCK_PULL_POLICY)
+        - --annotation=description=$(K8S_ANNOTATION_DESCRIPTION)
+        - --label=app=$(K8S_LABEL_APP)
+        - --label=component=$(K8S_LABEL_COMPONENT)
+        envFrom:
+        - configMapRef:
+            name: testcontainers-config
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+        readinessProbe:
+          httpGet:
+            path: /version
+            port: 2375
+          initialDelaySeconds: 15
+          periodSeconds: 5
+          timeoutSeconds: 10
+          failureThreshold: 6
+        livenessProbe:
+          httpGet:
+            path: /version
+            port: 2375
+          initialDelaySeconds: 30
+          periodSeconds: 15
+          timeoutSeconds: 10
+          failureThreshold: 3
+      
+      # Optional: Add node selector for specific nodes
+      # nodeSelector:
+      #   kubernetes.io/os: linux
+      
+      # Optional: Add tolerations for tainted nodes  
+      # tolerations:
+      # - key: "test-workload"
+      #   operator: "Equal"
+      #   value: "true"
+      #   effect: "NoSchedule"
