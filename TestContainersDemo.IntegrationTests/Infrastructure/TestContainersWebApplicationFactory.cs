@@ -19,6 +19,7 @@ public class TestContainersWebApplicationFactory : WebApplicationFactory<Program
         .Build();
 
     public string RedisConnectionString => _redisContainer.GetConnectionString();
+    public string MockApiUrl => "http://httpbin.org"; // Using httpbin as a simple mock API for testing
 
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -36,10 +37,11 @@ public class TestContainersWebApplicationFactory : WebApplicationFactory<Program
 
         builder.ConfigureAppConfiguration((context, config) =>
         {
-            // Override the Redis connection string to use the test container
+            // Override connection strings to use test containers
             var testConfiguration = new Dictionary<string, string?>
             {
-                ["ConnectionStrings:Redis"] = RedisConnectionString
+                ["ConnectionStrings:Redis"] = RedisConnectionString,
+                ["ConnectionStrings:MockApi"] = MockApiUrl
             };
 
             config.AddInMemoryCollection(testConfiguration);
