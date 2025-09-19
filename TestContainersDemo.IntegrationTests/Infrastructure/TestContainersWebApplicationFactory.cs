@@ -14,6 +14,7 @@ public class TestContainersWebApplicationFactory : WebApplicationFactory<Program
     private readonly RedisContainer _redisContainer = new RedisBuilder()
         .WithImage("redis:7.0-alpine")
         .WithPortBinding(6379, true)
+        .WithCommand("redis-server", "--protected-mode", "no")
         .Build();
 
     public string RedisConnectionString => _redisContainer.GetConnectionString();
@@ -53,10 +54,11 @@ public class TestContainersWebApplicationFactory : WebApplicationFactory<Program
             {
                 var configuration = ConfigurationOptions.Parse(RedisConnectionString);
                 configuration.AbortOnConnectFail = false;
+                configuration.AllowAdmin = true; // Enable admin operations for testing
                 return ConnectionMultiplexer.Connect(configuration);
             });
 
-            services.AddScoped<IRedisService, RedisService>();
+            services.AddSingleton<IRedisService, RedisService>();
         });
     }
 

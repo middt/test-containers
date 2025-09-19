@@ -7,13 +7,11 @@ public abstract class IntegrationTestBase : IClassFixture<TestContainersWebAppli
 {
     protected readonly TestContainersWebApplicationFactory Factory;
     protected readonly HttpClient HttpClient;
-    protected readonly IRedisService RedisService;
 
     protected IntegrationTestBase(TestContainersWebApplicationFactory factory)
     {
         Factory = factory;
         HttpClient = factory.CreateClient();
-        RedisService = factory.Services.GetRequiredService<IRedisService>();
     }
 
     protected async Task CleanupRedisAsync()
@@ -23,5 +21,11 @@ public abstract class IntegrationTestBase : IClassFixture<TestContainersWebAppli
         var connectionMultiplexer = Factory.Services.GetRequiredService<StackExchange.Redis.IConnectionMultiplexer>();
         var server = connectionMultiplexer.GetServer(connectionMultiplexer.GetEndPoints().First());
         await server.FlushDatabaseAsync();
+    }
+
+    protected IRedisService GetRedisService()
+    {
+        // Get singleton service directly from root provider
+        return Factory.Services.GetRequiredService<IRedisService>();
     }
 }
