@@ -83,7 +83,7 @@
       "responses": [
         {
           "uuid": "response-create-user",
-          "body": "{\n  \"id\": {{faker 'datatype.number' min=100 max=999}},\n  \"name\": \"{{body 'name'}}\",\n  \"email\": \"{{body 'email'}}\",\n  \"createdAt\": \"{{now}}\"\n}",
+          "body": "{\n  \"id\": {{faker 'number.int' min=100 max=999}},\n  \"name\": \"{{faker 'person.fullName'}}\",\n  \"email\": \"{{faker 'internet.email'}}\",\n  \"createdAt\": \"{{now}}\"\n}",
           "latency": 0,
           "statusCode": 201,
           "label": "Created",

@@ -1,342 +1,193 @@
-# .NET Core Testcontainers Redis Demo
+# .NET Core Testcontainers Integration Demo
 
-This project demonstrates how to use **Testcontainers** for integration testing with Redis in a .NET Core application. The solution includes a Web API that interacts with Redis and comprehensive integration tests that spin up a Redis container automatically.
+This project demonstrates **Testcontainers** integration testing in a .NET Core application with **Redis caching** and **Users API** functionality. Tests automatically spin up Redis and Mockoon containers for complete integration testing.
 
 ## Project Structure
 
 ```
 TestContainersDemo/
-├── TestContainersDemo.sln
 ├── TestContainersDemo.Api/                    # Main Web API project
-│   ├── Controllers/CacheController.cs         # Redis cache endpoints
-│   ├── Interfaces/IRedisService.cs            # Redis service interface
-│   ├── Services/RedisService.cs               # Redis service implementation
-│   └── Program.cs                             # Application configuration
-└── TestContainersDemo.IntegrationTests/       # Integration tests project
-    ├── Infrastructure/                        # Test infrastructure
-    │   ├── TestContainersWebApplicationFactory.cs
-    │   └── IntegrationTestBase.cs
-    └── Tests/                                 # Test files
-        ├── CacheControllerTests.cs
-        └── RedisServiceTests.cs
+│   ├── Controllers/
+│   │   ├── CacheController.cs                # Redis cache endpoints
+│   │   └── UsersController.cs                # Users API endpoints
+│   ├── Services/
+│   │   ├── RedisService.cs                   # Redis service implementation
+│   │   └── UserService.cs                    # Users service implementation
+│   └── Models/                               # DTOs and models
+├── TestContainersDemo.IntegrationTests/       # Integration tests
+│   ├── Infrastructure/
+│   │   └── TestContainersWebApplicationFactory.cs  # Manages containers
+│   ├── MockApi/
+│   │   └── mockoon-config.json               # Mock API configuration
+│   └── Tests/                                # 37 integration tests
+└── k8s/                                      # Kubernetes deployment
+    ├── manifests/                            # K8s manifests
+    ├── scripts/                              # Deployment scripts
+    └── Dockerfile.tests                      # Test container image
 ```
 
 ## Features
 
-### Web API Features
-- **Redis Cache Operations**: Set, Get, Delete, Exists, Increment, Decrement
-- **TTL Support**: Set cache entries with expiration times
-- **RESTful API**: Clean REST endpoints for cache operations
-- **Error Handling**: Comprehensive error handling and logging
-- **Dependency Injection**: Proper DI setup for Redis services
-
-### Testing Features
-- **Testcontainers Integration**: Automatic Redis container management
-- **Integration Tests**: Tests that verify actual Redis interactions
-- **Test Isolation**: Each test runs against a clean Redis instance
-- **Concurrent Testing**: Tests for concurrent Redis operations
+- **Redis Cache API**: Set, Get, Delete, Exists, Increment, Decrement operations
+- **Users API**: Create, retrieve users with external API integration
+- **Testcontainers Integration**: Automatic Redis + Mockoon container management
+- **Kubernetes Support**: Runs in K8s with Kubedock
+- **Comprehensive Testing**: 37 integration tests (100% pass rate)
 
 ## Prerequisites
 
-- **.NET 9.0 SDK** or later
-- **Docker Desktop** (required for Testcontainers)
+- **.NET 9.0 SDK**
+- **Docker Desktop**
+- **Kubernetes cluster** (for K8s deployment)
 
-## Getting Started
+## Running Locally
 
 ### 1. Clone and Build
-
 ```bash
-git clone <your-repo-url>
+git clone <your-repo>
 cd TestContainersDemo
 dotnet restore
 dotnet build
 ```
 
-### 2. Running the Application
-
-#### Option A: With Local Redis
-If you have Redis running locally on port 6379:
-
+### 2. Run Tests
 ```bash
-cd TestContainersDemo.Api
-dotnet run
+# Run all integration tests (37 tests)
+dotnet test
+
+# Expected result:
+# Test Run Successful.
+# Total tests: 37
+#      Passed: 37
 ```
 
-#### Option B: With Docker Redis
-Start a Redis container:
-
+### 3. Run Application (Optional)
 ```bash
+# Start with local Redis
 docker run --name redis-demo -p 6379:6379 -d redis:7.0-alpine
 cd TestContainersDemo.Api
 dotnet run
 ```
 
-### 3. Testing the API
+## Running in CI/CD Pipeline
 
-Once the application is running (default: https://localhost:5001), you can test the endpoints:
+### GitHub Actions Example
+```yaml
+name: Integration Tests
 
-#### Set a value:
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: '9.0.x'
+        
+    - name: Restore dependencies
+      run: dotnet restore
+      
+    - name: Build
+      run: dotnet build --no-restore
+      
+    - name: Run integration tests
+      run: dotnet test --no-build --verbosity normal
+```
+
+### Azure DevOps Example
+```yaml
+trigger:
+- main
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+steps:
+- task: UseDotNet@2
+  inputs:
+    packageType: 'sdk'
+    version: '9.0.x'
+
+- script: dotnet restore
+  displayName: 'Restore packages'
+
+- script: dotnet build --no-restore
+  displayName: 'Build'
+
+- script: dotnet test --no-build --logger trx
+  displayName: 'Run tests'
+```
+
+## Kubernetes Installation & Deployment
+
+### 1. Install Kubernetes
+
+#### Option A: Local Development (Docker Desktop)
 ```bash
-curl -X POST https://localhost:5001/api/cache/mykey \
-  -H "Content-Type: application/json" \
-  -d '{"value": "Hello World"}'
+# Enable Kubernetes in Docker Desktop settings
+# Or install kind:
+curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.20.0/kind-linux-amd64
+chmod +x ./kind
+sudo mv ./kind /usr/local/bin/kind
+
+# Create cluster
+kind create cluster --name testcontainers-demo
 ```
 
-#### Get a value:
+#### Option B: Cloud Providers
 ```bash
-curl https://localhost:5001/api/cache/mykey
+# AWS EKS
+aws eks create-cluster --name testcontainers-demo --version 1.28
+
+# Azure AKS  
+az aks create --resource-group myResourceGroup --name testcontainers-demo
+
+# Google GKE
+gcloud container clusters create testcontainers-demo --zone us-central1-a
 ```
 
-#### Check if key exists:
+### 2. Install Kubedock (Required for Testcontainers in K8s)
 ```bash
-curl https://localhost:5001/api/cache/mykey/exists
+# Install Kubedock in your cluster
+kubectl apply -f https://raw.githubusercontent.com/joyrex2001/kubedock/main/deploy/kubedock.yaml
 ```
 
-#### Increment a counter:
+### 3. Deploy and Run Tests
 ```bash
-curl -X POST https://localhost:5001/api/cache/counter/increment
-```
-
-#### Delete a key:
-```bash
-curl -X DELETE https://localhost:5001/api/cache/mykey
-```
-
-## API Endpoints
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/cache/{key}` | Set a cache value with optional expiry |
-| GET | `/api/cache/{key}` | Get a cache value |
-| DELETE | `/api/cache/{key}` | Delete a cache key |
-| GET | `/api/cache/{key}/exists` | Check if key exists |
-| POST | `/api/cache/{key}/increment` | Increment a numeric value |
-| POST | `/api/cache/{key}/decrement` | Decrement a numeric value |
-
-### Request/Response Examples
-
-#### Set Value Request:
-```json
-{
-  "value": "Hello World",
-  "expiryMinutes": 60
-}
-```
-
-#### Get Value Response:
-```json
-{
-  "key": "mykey",
-  "value": "Hello World"
-}
-```
-
-## Running Integration Tests
-
-### Local Development
-
-The integration tests use **Testcontainers** to automatically spin up a Redis container:
-
-```bash
-# Run all tests
-dotnet test
-
-# Run tests with detailed output
-dotnet test --logger "console;verbosity=detailed"
-
-# Run only integration tests
-dotnet test TestContainersDemo.IntegrationTests
-
-# Run a specific test class
-dotnet test --filter "FullyQualifiedName~CacheControllerTests"
-```
-
-### Kubernetes Deployment with Kubedock
-
-For running tests in Kubernetes environments, this project includes [Kubedock](https://github.com/joyrex2001/kubedock) integration:
-
-```bash
-# Deploy to local KIND cluster (recommended for development)
-./k8s/scripts/deploy-kind.sh
-
-# Or deploy to existing Kubernetes cluster
+# Deploy to Kubernetes
 ./k8s/scripts/deploy.sh
+
+# Check test results
+./k8s/scripts/test-deployment.sh
+
+# Expected output:
+# 🎉 All tests passed! The Kubernetes deployment is working correctly.
+# Test Run Successful.
+# Total tests: 37
+#      Passed: 37
 ```
 
-**Kubedock Benefits:**
-- ✅ No Docker-in-Docker required
-- ✅ Test containers run as Kubernetes pods  
-- ✅ Better resource management and security
-- ✅ Perfect for CI/CD pipelines (Tekton, GitHub Actions, etc.)
-
-See [k8s/README.md](k8s/README.md) for detailed Kubernetes deployment instructions.
-
-### What the Tests Cover
-
-#### Controller Tests (`CacheControllerTests`)
-- ✅ Set and get operations
-- ✅ Non-existent key handling
-- ✅ Cache expiry functionality
-- ✅ Delete operations
-- ✅ Key existence checks
-- ✅ Increment/decrement operations
-
-#### Service Tests (`RedisServiceTests`)
-- ✅ Direct Redis service operations
-- ✅ Concurrent operations
-- ✅ TTL (Time To Live) functionality
-- ✅ Error handling scenarios
-
-## How Testcontainers Works
-
-### 1. Test Container Setup
-The `TestContainersWebApplicationFactory` automatically:
-- Starts a Redis container before tests run
-- Configures the application to use the test container
-- Provides a clean Redis instance for each test class
-
-### 2. Container Lifecycle
-```csharp
-// Container is started once per test class
-public async Task InitializeAsync()
-{
-    await _redisContainer.StartAsync();
-}
-
-// Container is disposed after all tests complete
-public async Task DisposeAsync()
-{
-    await _redisContainer.DisposeAsync();
-}
-```
-
-### 3. Test Isolation
-Each test method calls `CleanupRedisAsync()` to ensure a clean state:
-```csharp
-protected async Task CleanupRedisAsync()
-{
-    var server = connectionMultiplexer.GetServer(connectionMultiplexer.GetEndPoints().First());
-    await server.FlushDatabaseAsync();
-}
-```
-
-## Configuration
-
-### Application Configuration
-The Redis connection string can be configured in:
-
-- `appsettings.json`:
-```json
-{
-  "ConnectionStrings": {
-    "Redis": "localhost:6379"
-  }
-}
-```
-
-- Environment variables:
+### 4. Cleanup
 ```bash
-export ConnectionStrings__Redis="localhost:6379"
+# Delete the deployment
+kubectl delete namespace testcontainers-demo
 ```
 
-### Test Configuration
-Tests automatically configure Redis to use the Testcontainer:
-```csharp
-var testConfiguration = new Dictionary<string, string?>
-{
-    ["ConnectionStrings:Redis"] = _redisContainer.GetConnectionString()
-};
-```
+## Test Coverage
 
-## Benefits of This Approach
-
-### 1. **Real Integration Testing**
-- Tests run against actual Redis instances
-- No mocking of Redis behavior
-- Catches Redis-specific issues
-
-### 2. **Test Isolation**
-- Each test class gets its own container
-- Tests don't interfere with each other
-- Consistent test environment
-
-### 3. **CI/CD Friendly**
-- No external dependencies in CI
-- Containers are managed automatically
-- Works on any system with Docker
-
-### 4. **Development Productivity**
-- No need to manually start/stop Redis
-- Tests run the same way locally and in CI
-- Easy debugging with real Redis data
-
-## Troubleshooting
-
-### Docker Issues
-If tests fail with Docker-related errors:
-
-1. **Check Docker is running**:
-```bash
-docker info
-```
-
-2. **Check Docker permissions** (Linux/Mac):
-```bash
-sudo usermod -aG docker $USER
-# Log out and back in
-```
-
-3. **Clean up containers**:
-```bash
-docker system prune -f
-```
-
-### Redis Connection Issues
-If you see Redis connection errors:
-
-1. **Check Redis container logs**:
-```bash
-docker logs <container-id>
-```
-
-2. **Verify port binding**:
-```bash
-docker ps
-```
-
-3. **Test Redis connectivity**:
-```bash
-docker exec -it <container-id> redis-cli ping
-```
-
-### Test Issues
-If tests are flaky:
-
-1. **Increase timeout values** in test setup
-2. **Check for port conflicts** with other services
-3. **Ensure proper test cleanup** between test runs
-
-## Next Steps
-
-To extend this project, consider:
-
-1. **Adding more Redis features** (pub/sub, streams, etc.)
-2. **Implementing caching patterns** (cache-aside, write-through)
-3. **Adding metrics and monitoring**
-4. **Performance testing** with Testcontainers
-5. **Testing Redis cluster configurations**
+- **Redis Cache Tests**: 20 tests (CacheController: 9, RedisService: 11)
+- **Users API Tests**: 17 tests (UsersController: 9, UserService: 8)
+- **Total**: 37 integration tests with 100% pass rate
 
 ## Dependencies
 
-### Main Project
-- `StackExchange.Redis` - Redis client library
-- `Microsoft.AspNetCore` - Web API framework
-
-### Test Project
-- `Testcontainers.Redis` - Redis Testcontainers support
+- `StackExchange.Redis` - Redis client
+- `Testcontainers.Redis` - Redis container support
+- `DotNet.Testcontainers` - Generic container support
 - `Microsoft.AspNetCore.Mvc.Testing` - ASP.NET Core testing
 - `xUnit` - Testing framework
-
-## License
-
-This project is provided as a demonstration and learning resource.

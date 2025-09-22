@@ -21,8 +21,32 @@ public class TestContainersWebApplicationFactory : WebApplicationFactory<Program
         .WithCommand("redis-server", "--protected-mode", "no")
         .Build();
 
+    private readonly IContainer _mockoonContainer = new ContainerBuilder()
+        .WithImage("mockoon/cli:latest")
+        .WithPortBinding(3000, true)
+        .WithBindMount(
+            Path.Combine(Directory.GetCurrentDirectory(), "MockApi"),
+            "/data")
+        .WithCommand("--data", "/data/mockoon-config.json", "--port", "3000", "--hostname", "0.0.0.0")
+        .WithWaitStrategy(Wait.ForUnixContainer()
+            .UntilHttpRequestIsSucceeded(r => r.ForPort(3000).ForPath("/users")))
+        .Build();
+
     public string RedisConnectionString => _redisContainer.GetConnectionString();
-    public string MockApiUrl => "https://httpbin.org"; // Using httpbin.org as a reliable external API for demo
+    public string MockApiUrl 
+    {
+        get
+        {
+            // In containerized environments (like Kubernetes), use container IP
+            var isTestingEnvironment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Testing";
+            if (isTestingEnvironment)
+            {
+                return $"http://{_mockoonContainer.IpAddress}:3000";
+            }
+            // For local development, use mapped port
+            return $"http://localhost:{_mockoonContainer.GetMappedPublicPort(3000)}";
+        }
+    }
 
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -106,12 +130,20 @@ public class TestContainersWebApplicationFactory : WebApplicationFactory<Program
 
     public async Task InitializeAsync()
     {
-        await _redisContainer.StartAsync();
+        // Start both containers in parallel for faster startup
+        await Task.WhenAll(
+            _redisContainer.StartAsync(),
+            _mockoonContainer.StartAsync()
+        );
     }
 
     public new async Task DisposeAsync()
     {
-        await _redisContainer.DisposeAsync();
+        // Dispose both containers in parallel
+        await Task.WhenAll(
+            _redisContainer.DisposeAsync().AsTask(),
+            _mockoonContainer.DisposeAsync().AsTask()
+        );
         await base.DisposeAsync();
     }
 }
