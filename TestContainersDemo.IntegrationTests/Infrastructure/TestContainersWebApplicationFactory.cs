@@ -7,6 +7,9 @@ using StackExchange.Redis;
 using Testcontainers.Redis;
 using TestContainersDemo.Api.Interfaces;
 using TestContainersDemo.Api.Services;
+using DotNet.Testcontainers.Builders;
+using DotNet.Testcontainers.Containers;
+using DotNet.Testcontainers.Volumes;
 
 namespace TestContainersDemo.IntegrationTests.Infrastructure;
 
@@ -19,7 +22,7 @@ public class TestContainersWebApplicationFactory : WebApplicationFactory<Program
         .Build();
 
     public string RedisConnectionString => _redisContainer.GetConnectionString();
-    public string MockApiUrl => "http://httpbin.org"; // Using httpbin as a simple mock API for testing
+    public string MockApiUrl => "https://httpbin.org"; // Using httpbin.org as a reliable external API for demo
 
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -74,6 +77,30 @@ public class TestContainersWebApplicationFactory : WebApplicationFactory<Program
             });
 
             services.AddSingleton<IRedisService, RedisService>();
+
+            // Remove existing UserService and HttpClient registrations
+            var userServiceDescriptor = services.SingleOrDefault(d => d.ServiceType == typeof(IUserService));
+            if (userServiceDescriptor != null)
+            {
+                services.Remove(userServiceDescriptor);
+            }
+
+            // Remove HttpClient factory registrations related to UserService
+            var httpClientDescriptors = services.Where(d => 
+                d.ServiceType.IsGenericType && 
+                d.ServiceType.GetGenericTypeDefinition() == typeof(IHttpClientFactory) ||
+                (d.ImplementationType?.Name.Contains("UserService") == true)).ToList();
+                
+            foreach (var descriptor in httpClientDescriptors)
+            {
+                services.Remove(descriptor);
+            }
+
+            // Re-register HttpClient with correct MockApi URL
+            services.AddHttpClient<IUserService, UserService>(client =>
+            {
+                client.BaseAddress = new Uri(MockApiUrl);
+            });
         });
     }
 
