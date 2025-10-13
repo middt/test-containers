@@ -20,7 +20,7 @@ spec:
       
       # Main test container (using custom image)
       - name: tests
-        image: testcontainers-demo:latest  # Build with: docker build -f k8s/Dockerfile.tests -t testcontainers-demo:latest .
+        image: testcontainers-demo:final  # Build with: docker build -f k8s/Dockerfile.tests -t testcontainers-demo:final .
         imagePullPolicy: Never  # Use locally built image
         envFrom:
         - configMapRef:
@@ -61,7 +61,7 @@ spec:
           
           # Run the integration tests
           echo "🧪 Running integration tests..."
-          dotnet test --no-build --logger "console;verbosity=normal" --results-directory /tmp/test-results
+          dotnet test --configuration Release --no-build --logger "console;verbosity=normal" --results-directory /tmp/test-results
           
           echo "✅ All tests completed successfully!"
           

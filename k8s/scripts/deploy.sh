@@ -59,6 +59,9 @@ echo "✅ RBAC resources created"
 kubectl apply -f "$K8S_DIR/manifests/03-configmap.yaml"
 echo "✅ ConfigMap created"
 
+kubectl apply -f "$K8S_DIR/manifests/04-mockoon-configmap.yaml"
+echo "✅ Mockoon ConfigMap created"
+
 # Clean up any existing jobs
 echo ""
 echo "🧹 Cleaning up any existing test jobs..."
