@@ -15,13 +15,7 @@ namespace TestContainersDemo.IntegrationTests.Infrastructure;
 
 public class TestContainersWebApplicationFactory : WebApplicationFactory<Program>, IAsyncLifetime
 {
-    private readonly RedisContainer _redisContainer = new RedisBuilder()
-        .WithImage("redis:7.0-alpine")
-        .WithPortBinding(6379, true)
-        .WithCommand("redis-server", "--protected-mode", "no")
-        .Build();
-
-    // Mockoon container - initialized with inline config to work in Kubernetes
+    private readonly RedisContainer _redisContainer = CreateRedisContainer();
     private readonly IContainer _mockoonContainer = CreateMockoonContainer();
 
     public string RedisConnectionString => _redisContainer.GetConnectionString();
@@ -207,6 +201,15 @@ public class TestContainersWebApplicationFactory : WebApplicationFactory<Program
                 client.BaseAddress = new Uri(url);
             });
         });
+    }
+
+    private static RedisContainer CreateRedisContainer()
+    {
+        return new RedisBuilder()
+            .WithImage("redis:7.0-alpine")
+            .WithPortBinding(6379, true)
+            .WithCommand("redis-server", "--protected-mode", "no")
+            .Build();
     }
 
     private static IContainer CreateMockoonContainer()
