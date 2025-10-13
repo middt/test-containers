@@ -22,7 +22,7 @@ public class TestContainersWebApplicationFactory : WebApplicationFactory<Program
         .Build();
 
     // Mockoon container - initialized with inline config to work in Kubernetes
-    private IContainer? _mockoonContainer;
+    private readonly IContainer _mockoonContainer = CreateMockoonContainer();
 
     public string RedisConnectionString => _redisContainer.GetConnectionString();
     private string? _cachedMockApiUrl;
@@ -38,7 +38,7 @@ public class TestContainersWebApplicationFactory : WebApplicationFactory<Program
             
             // In containerized environments (like Kubernetes), we need to get the pod IP
             var isTestingEnvironment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Testing";
-            if (isTestingEnvironment && _mockoonContainer != null)
+            if (isTestingEnvironment)
             {
                 // In Kubedock, query the Docker API to get the actual pod IP
                 var containerId = _mockoonContainer.Id;
@@ -117,9 +117,7 @@ public class TestContainersWebApplicationFactory : WebApplicationFactory<Program
                 return _cachedMockApiUrl;
             }
             // For local development, use mapped port
-            _cachedMockApiUrl = _mockoonContainer != null 
-                ? $"http://localhost:{_mockoonContainer.GetMappedPublicPort(3000)}"
-                : "http://localhost:3000";
+            _cachedMockApiUrl = $"http://localhost:{_mockoonContainer.GetMappedPublicPort(3000)}";
             Console.WriteLine($"🔍 MockApiUrl (Local mode): {_cachedMockApiUrl}");
             return _cachedMockApiUrl;
         }
@@ -211,35 +209,35 @@ public class TestContainersWebApplicationFactory : WebApplicationFactory<Program
         });
     }
 
-    public async Task InitializeAsync()
+    private static IContainer CreateMockoonContainer()
     {
-        // v2: Using base64 encoding to pass Mockoon config to container
-        // This works in both local Docker and Kubernetes environments
-        
-        Console.WriteLine("🚀 Starting test containers...");
-        Console.WriteLine($"🔍 Environment: ASPNETCORE_ENVIRONMENT={Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")}");
-        Console.WriteLine($"🔍 Current Directory: {Directory.GetCurrentDirectory()}");
-        
-        // Start Redis container (always)
-        Console.WriteLine("📦 Starting Redis container...");
-        await _redisContainer.StartAsync();
-        Console.WriteLine($"✅ Redis container started: {_redisContainer.Id}, IP: {_redisContainer.IpAddress}, Hostname: {_redisContainer.Hostname}");
-        
-        // Initialize Mockoon container with inline config
+        // Read Mockoon configuration from file
         var mockoonConfigPath = Path.Combine(Directory.GetCurrentDirectory(), "MockApi", "mockoon-config.json");
         var mockoonConfigContent = File.ReadAllText(mockoonConfigPath);
         
-        Console.WriteLine("📦 Creating Mockoon container...");
-        // Use environment variable to pass config - works in both local and Kubernetes
-        _mockoonContainer = new ContainerBuilder()
+        // Build Mockoon container with inline config to work in both local and Kubernetes
+        return new ContainerBuilder()
             .WithImage("mockoon/cli:latest")
             .WithPortBinding(3000, true)
             .WithEnvironment("MOCKOON_CONFIG", Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(mockoonConfigContent)))
             .WithEntrypoint("/bin/sh", "-c")
             .WithCommand($"echo $MOCKOON_CONFIG | base64 -d > /tmp/mockoon-config.json && mockoon-cli start --data /tmp/mockoon-config.json --port 3000 --hostname 0.0.0.0")
-            .WithWaitStrategy(Wait.ForUnixContainer().UntilPortIsAvailable(3000))
+            .WithWaitStrategy(Wait.ForUnixContainer().UntilInternalTcpPortIsAvailable(3000))
             .Build();
-            
+    }
+
+    public async Task InitializeAsync()
+    {
+        Console.WriteLine("🚀 Starting test containers...");
+        Console.WriteLine($"🔍 Environment: ASPNETCORE_ENVIRONMENT={Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")}");
+        Console.WriteLine($"🔍 Current Directory: {Directory.GetCurrentDirectory()}");
+        
+        // Start Redis container
+        Console.WriteLine("📦 Starting Redis container...");
+        await _redisContainer.StartAsync();
+        Console.WriteLine($"✅ Redis container started: {_redisContainer.Id}, IP: {_redisContainer.IpAddress}, Hostname: {_redisContainer.Hostname}");
+        
+        // Start Mockoon container
         Console.WriteLine("📦 Starting Mockoon container...");
         await _mockoonContainer.StartAsync();
         
@@ -290,11 +288,8 @@ public class TestContainersWebApplicationFactory : WebApplicationFactory<Program
         // Dispose Redis container
         await _redisContainer.DisposeAsync();
         
-        // Dispose Mockoon container if it was initialized
-        if (_mockoonContainer != null)
-        {
-            await _mockoonContainer.DisposeAsync();
-        }
+        // Dispose Mockoon container
+        await _mockoonContainer.DisposeAsync();
         
         await base.DisposeAsync();
     }
