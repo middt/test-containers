@@ -21,6 +21,13 @@ builder.Services.AddSingleton<IConnectionMultiplexer>(provider =>
 // Register Redis service
 builder.Services.AddScoped<IRedisService, RedisService>();
 
+// Register HTTP client and User service
+builder.Services.AddHttpClient<IUserService, UserService>(client =>
+{
+    var mockApiUrl = builder.Configuration.GetConnectionString("MockApi") ?? "http://localhost:3000";
+    client.BaseAddress = new Uri(mockApiUrl);
+});
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.

@@ -1,0 +1,24 @@
+FROM mcr.microsoft.com/dotnet/sdk:9.0
+
+# Set working directory
+WORKDIR /app
+
+# Copy solution file first
+COPY TestContainersDemo.sln ./
+
+# Copy project files for dependency restoration
+COPY TestContainersDemo.Api/TestContainersDemo.Api.csproj ./TestContainersDemo.Api/
+COPY TestContainersDemo.IntegrationTests/TestContainersDemo.IntegrationTests.csproj ./TestContainersDemo.IntegrationTests/
+
+# Restore dependencies with verbose logging to debug issues
+RUN dotnet restore --verbosity normal
+
+# Copy all source files
+COPY TestContainersDemo.Api/ ./TestContainersDemo.Api/
+COPY TestContainersDemo.IntegrationTests/ ./TestContainersDemo.IntegrationTests/
+
+# Build the projects (allow restore in case of missing packages)
+RUN dotnet build --configuration Release
+
+# Set the entry point for running tests
+ENTRYPOINT ["dotnet", "test", "--configuration", "Release", "--no-build", "--logger", "console;verbosity=normal"]
