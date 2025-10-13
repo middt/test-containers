@@ -2,6 +2,13 @@
 
 This project demonstrates **Testcontainers** integration testing in a .NET Core application with **Redis caching** and **Users API** functionality. Tests automatically spin up Redis and Mockoon containers for complete integration testing.
 
+## ✅ Recent Fixes
+
+- **Fixed Kubedock deployment**: Kubedock now runs as a sidecar container (no separate installation needed)
+- **Fixed RBAC permissions**: Added proper `list`, `watch`, and `delete` verbs for lease management
+- **Fixed stale lease issue**: Documented how to clear stale kubedock leases
+- **Updated README**: Removed broken kubedock installation URL
+
 ## Project Structure
 
 ```
@@ -32,7 +39,9 @@ TestContainersDemo/
 - **Users API**: Create, retrieve users with external API integration
 - **Testcontainers Integration**: Automatic Redis + Mockoon container management
 - **Kubernetes Support**: Runs in K8s with Kubedock
-- **Comprehensive Testing**: 37 integration tests (100% pass rate)
+  - ✅ **Redis tests**: 23 tests fully working in Kubernetes
+  - ⚠️ **Mockoon tests**: 14 tests require local Docker (file mounting limitation)
+- **Comprehensive Testing**: 37 integration tests (100% pass rate locally)
 
 ## Prerequisites
 
@@ -151,13 +160,11 @@ az aks create --resource-group myResourceGroup --name testcontainers-demo
 gcloud container clusters create testcontainers-demo --zone us-central1-a
 ```
 
-### 2. Install Kubedock (Required for Testcontainers in K8s)
-```bash
-# Install Kubedock in your cluster
-kubectl apply -f https://raw.githubusercontent.com/joyrex2001/kubedock/main/deploy/kubedock.yaml
-```
+### 2. Deploy and Run Tests
 
-### 3. Deploy and Run Tests
+> **Note**: Kubedock is automatically deployed as a sidecar container alongside the tests. No separate installation required.
+
+> **⚠️ Known Limitation**: When running in Kubernetes with Kubedock, file mounting for Mockoon containers is not supported. This means User API tests that depend on Mockoon will not work in K8s. Redis-based cache tests work perfectly. For full test coverage including Mockoon, run tests locally with Docker Desktop.
 ```bash
 # Deploy to Kubernetes
 ./k8s/scripts/deploy.sh
@@ -165,17 +172,64 @@ kubectl apply -f https://raw.githubusercontent.com/joyrex2001/kubedock/main/depl
 # Check test results
 ./k8s/scripts/test-deployment.sh
 
-# Expected output:
-# 🎉 All tests passed! The Kubernetes deployment is working correctly.
-# Test Run Successful.
+# Expected output (Kubernetes):
+# Test Run Failed.
 # Total tests: 37
-#      Passed: 37
+#      Passed: 23  (All Redis/Cache tests)
+#      Failed: 14  (User API tests - Mockoon file mounting not supported)
+#
+# NOTE: 23 passing tests demonstrates Testcontainers + Kubedock works perfectly!
+# The 14 failures are expected due to Mockoon's file mounting limitation in K8s.
+# Run 'dotnet test' locally for full 37/37 test coverage.
 ```
 
-### 4. Cleanup
+### 3. Cleanup
 ```bash
 # Delete the deployment
 kubectl delete namespace testcontainers-demo
+```
+
+## Troubleshooting
+
+### Kubedock stuck at "attempting to acquire leader lease"
+
+If kubedock is stuck trying to acquire a lease, there may be a stale lease from a previous run:
+
+```bash
+# Check for stale leases
+kubectl get leases -n testcontainers-demo
+
+# Delete the stale lease
+kubectl delete lease kubedock-lock -n testcontainers-demo
+
+# Restart the job
+kubectl delete job testcontainers-demo-job-image -n testcontainers-demo
+kubectl apply -f k8s/manifests/05-test-job-with-image.yaml
+```
+
+### Tests timing out or containers failing
+
+1. **Check kubedock logs**:
+   ```bash
+   kubectl logs -n testcontainers-demo job/testcontainers-demo-job-image -c kubedock -f
+   ```
+
+2. **Check test logs**:
+   ```bash
+   kubectl logs -n testcontainers-demo job/testcontainers-demo-job-image -c tests -f
+   ```
+
+3. **Check pod events**:
+   ```bash
+   kubectl get events -n testcontainers-demo --sort-by='.lastTimestamp' | tail -20
+   ```
+
+### File mounting issues with Mockoon in Kubernetes
+
+This is a known limitation. Kubedock doesn't support file bind mounts the same way as Docker Desktop. For tests that require file mounting (like Mockoon), run them locally instead:
+
+```bash
+dotnet test
 ```
 
 ## Test Coverage
