@@ -8,10 +8,10 @@ public class FailingTests : IntegrationTestBase
     public FailingTests(TestContainersWebApplicationFactory factory) : base(factory) { }
 
     [Fact]
-    public async Task GetNonExistentEndpoint_ShouldReturnOk_ButWillFail()
+    public async Task GetNonExistentEndpoint_ShouldReturnNotFound()
     {
         var response = await HttpClient.GetAsync("/api/this-does-not-exist");
 
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 }
