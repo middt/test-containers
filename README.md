@@ -21,6 +21,10 @@ TestContainersDemo/
 │   │   ├── RedisService.cs                   # Redis service implementation
 │   │   └── UserService.cs                    # Users service implementation
 │   └── Models/                               # DTOs and models
+├── TestContainersDemo.UnitTests/              # Unit tests (Moq-based)
+│   ├── Controllers/                          # Controller unit tests
+│   ├── Services/                             # Service unit tests
+│   └── Models/                               # Model unit tests
 ├── TestContainersDemo.IntegrationTests/       # Integration tests
 │   ├── Infrastructure/
 │   │   └── TestContainersWebApplicationFactory.cs  # Manages containers
@@ -224,9 +228,16 @@ dotnet test
 
 ## Test Coverage
 
+### Unit Tests (29 tests)
+- **CacheController**: 10 tests (set, get, delete, exists, increment, decrement)
+- **UsersController**: 8 tests (get users, get by id, create, validation, errors)
+- **UserService**: 7 tests (HTTP interactions via mocked HttpClient)
+- **Models**: 3 tests (User, CreateUserRequest defaults and properties)
+- **Failing**: 1 deliberate failure for CI demo
+
+### Integration Tests (37 tests)
 - **Redis Cache Tests**: 20 tests (CacheController: 9, RedisService: 11)
 - **Users API Tests**: 17 tests (UsersController: 9, UserService: 8)
-- **Total**: 37 integration tests with 100% pass rate
 
 ## Dependencies
 
@@ -234,4 +245,5 @@ dotnet test
 - `Testcontainers.Redis` - Redis container support
 - `DotNet.Testcontainers` - Generic container support
 - `Microsoft.AspNetCore.Mvc.Testing` - ASP.NET Core testing
+- `Moq` - Mocking framework for unit tests
 - `xUnit` - Testing framework
