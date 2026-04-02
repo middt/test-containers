@@ -93,8 +93,7 @@ public class DaprControllerTests
 
         var result = await _controller.PublishOrder(order);
 
-        var accepted = Assert.IsType<ObjectResult>(result);
-        Assert.Equal(202, accepted.StatusCode);
+        Assert.IsType<AcceptedResult>(result);
     }
 
     [Fact]
