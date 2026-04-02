@@ -1,3 +1,4 @@
+using Dapr.Client;
 using StackExchange.Redis;
 using TestContainersDemo.Api.Interfaces;
 using TestContainersDemo.Api.Services;
@@ -25,6 +26,10 @@ builder.Services.AddSingleton<IConnectionMultiplexer>(provider =>
 
 // Register Redis service
 builder.Services.AddScoped<IRedisService, RedisService>();
+
+// Register Dapr client and state service
+builder.Services.AddDaprClient();
+builder.Services.AddScoped<IDaprStateService, DaprStateService>();
 
 // Register HTTP client and User service
 builder.Services.AddHttpClient<IUserService, UserService>(client =>
