@@ -45,7 +45,7 @@ TestContainersDemo/
 
 ## Prerequisites
 
-- **.NET 9.0 SDK**
+- **.NET 10.0 SDK**
 - **Docker Desktop**
 - **Kubernetes cluster** (for K8s deployment)
 
@@ -80,33 +80,9 @@ dotnet run
 
 ## Running in CI/CD Pipeline
 
-### GitHub Actions Example
-```yaml
-name: Integration Tests
+### GitHub Actions
 
-on: [push, pull_request]
-
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v3
-      with:
-        dotnet-version: '9.0.x'
-        
-    - name: Restore dependencies
-      run: dotnet restore
-      
-    - name: Build
-      run: dotnet build --no-restore
-      
-    - name: Run integration tests
-      run: dotnet test --no-build --verbosity normal
-```
+The repository includes a workflow at `.github/workflows/integration-tests.yml` that runs all integration tests on PRs targeting `main` or `release-*` branches. Test results are uploaded as artifacts for easy review.
 
 ### Azure DevOps Example
 ```yaml
@@ -120,7 +96,7 @@ steps:
 - task: UseDotNet@2
   inputs:
     packageType: 'sdk'
-    version: '9.0.x'
+    version: '10.0.x'
 
 - script: dotnet restore
   displayName: 'Restore packages'
