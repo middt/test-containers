@@ -6,6 +6,14 @@ on:
       - main
       - 'release-*'
 
+concurrency:
+  group: integration-tests-${{ github.head_ref }}
+  cancel-in-progress: true
+
+permissions:
+  checks: write
+  pull-requests: write
+
 jobs:
   integration-tests:
     runs-on: ubuntu-latest
@@ -25,7 +33,23 @@ jobs:
         run: dotnet build --no-restore --configuration Release
 
       - name: Run integration tests
-        run: dotnet test --no-build --configuration Release --logger "trx;LogFileName=test-results.trx" --results-directory ./test-results
+        run: >
+          dotnet test
+          --no-build
+          --configuration Release
+          --verbosity normal
+          --logger "trx;LogFileName=test-results.trx"
+          --logger "console;verbosity=detailed"
+          --results-directory ./test-results
+
+      - name: Publish test results
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name: Test Results
+          path: ./test-results/*.trx
+          reporter: dotnet-trx
+          fail-on-error: true
 
       - name: Upload test results
         uses: actions/upload-artifact@v4

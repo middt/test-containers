@@ -82,7 +82,21 @@ dotnet run
 
 ### GitHub Actions
 
-The repository includes a workflow at `.github/workflows/integration-tests.yml` that runs all integration tests on PRs targeting `main` or `release-*` branches. Test results are uploaded as artifacts for easy review.
+The repository includes a workflow at `.github/workflows/integration-tests.yml` that runs all integration tests on PRs targeting `main` or `release-*` branches.
+
+- **Detailed reporting**: Each test is listed line-by-line (pass/fail, class, method) directly in the PR checks tab via [dorny/test-reporter](https://github.com/dorny/test-reporter)
+- **Artifacts**: Raw `.trx` results are uploaded for 7 days
+- **Concurrency**: Pushes to the same PR branch cancel in-progress runs
+
+#### Require tests before merge
+
+To block merging until tests pass, enable a branch protection rule:
+
+1. Go to **Settings → Branches → Add rule**
+2. Set **Branch name pattern** to `main` (repeat for `release-*`)
+3. Check **Require status checks to pass before merging**
+4. Search for and select **Integration Tests / integration-tests**
+5. Save
 
 ### Azure DevOps Example
 ```yaml
