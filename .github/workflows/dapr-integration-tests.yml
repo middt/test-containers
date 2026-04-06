@@ -1,0 +1,59 @@
+name: Dapr Integration Tests
+
+on:
+  pull_request:
+    branches:
+      - main
+      - 'release-*'
+
+concurrency:
+  group: dapr-tests-${{ github.head_ref }}
+  cancel-in-progress: true
+
+permissions:
+  checks: write
+  pull-requests: write
+
+jobs:
+  dapr-integration-tests:
+    name: Dapr Integration Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore
+        run: dotnet restore TestContainersDemo.IntegrationTests.Dapr/TestContainersDemo.IntegrationTests.Dapr.csproj
+
+      - name: Build
+        run: dotnet build TestContainersDemo.IntegrationTests.Dapr/TestContainersDemo.IntegrationTests.Dapr.csproj --no-restore --configuration Release
+
+      - name: Run Dapr integration tests
+        run: >
+          dotnet test TestContainersDemo.IntegrationTests.Dapr/TestContainersDemo.IntegrationTests.Dapr.csproj
+          --no-build --configuration Release --verbosity normal
+          --logger "trx;LogFileName=dapr-test-results.trx"
+          --logger "console;verbosity=detailed"
+          --results-directory ./test-results
+
+      - name: Publish test results
+        uses: dorny/test-reporter@v3
+        if: always()
+        with:
+          name: Dapr Integration Test Results
+          path: ./test-results/*.trx
+          reporter: dotnet-trx
+          fail-on-error: true
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: dapr-integration-test-results
+          path: ./test-results
+          retention-days: 7

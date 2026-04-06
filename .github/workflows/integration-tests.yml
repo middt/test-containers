@@ -27,7 +27,7 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
-      - name: Restore dependencies
+      - name: Restore
         run: dotnet restore TestContainersDemo.UnitTests/TestContainersDemo.UnitTests.csproj
 
       - name: Build
@@ -36,14 +36,12 @@ jobs:
       - name: Run unit tests
         run: >
           dotnet test TestContainersDemo.UnitTests/TestContainersDemo.UnitTests.csproj
-          --no-build
-          --configuration Release
-          --verbosity normal
+          --no-build --configuration Release --verbosity normal
           --logger "trx;LogFileName=unit-test-results.trx"
           --logger "console;verbosity=detailed"
           --results-directory ./test-results
 
-      - name: Publish unit test results
+      - name: Publish test results
         uses: dorny/test-reporter@v3
         if: always()
         with:
@@ -52,7 +50,7 @@ jobs:
           reporter: dotnet-trx
           fail-on-error: true
 
-      - name: Upload unit test results
+      - name: Upload test results
         uses: actions/upload-artifact@v6
         if: always()
         with:
@@ -72,7 +70,7 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
-      - name: Restore dependencies
+      - name: Restore
         run: dotnet restore TestContainersDemo.IntegrationTests/TestContainersDemo.IntegrationTests.csproj
 
       - name: Build
@@ -81,14 +79,12 @@ jobs:
       - name: Run integration tests
         run: >
           dotnet test TestContainersDemo.IntegrationTests/TestContainersDemo.IntegrationTests.csproj
-          --no-build
-          --configuration Release
-          --verbosity normal
+          --no-build --configuration Release --verbosity normal
           --logger "trx;LogFileName=integration-test-results.trx"
           --logger "console;verbosity=detailed"
           --results-directory ./test-results
 
-      - name: Publish integration test results
+      - name: Publish test results
         uses: dorny/test-reporter@v3
         if: always()
         with:
@@ -97,7 +93,7 @@ jobs:
           reporter: dotnet-trx
           fail-on-error: true
 
-      - name: Upload integration test results
+      - name: Upload test results
         uses: actions/upload-artifact@v6
         if: always()
         with:
