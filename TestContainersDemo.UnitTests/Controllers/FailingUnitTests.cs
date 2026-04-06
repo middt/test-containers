@@ -18,6 +18,6 @@ public class FailingUnitTests
         var result = await controller.Increment("counter");
 
         var okResult = Assert.IsType<OkObjectResult>(result);
-        Assert.Equal(5L, okResult.Value?.GetType().GetProperty("Value")?.GetValue(okResult.Value));
+        Assert.Equal(1L, okResult.Value?.GetType().GetProperty("Value")?.GetValue(okResult.Value));
     }
 }

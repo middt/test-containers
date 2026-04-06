@@ -12,6 +12,6 @@ public class FailingTests : IntegrationTestBase
     {
         var response = await HttpClient.GetAsync("/api/this-does-not-exist");
 
-        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 }
